@@ -145,11 +145,26 @@
     function renderMCQs(data) {
         const dlDiv = document.getElementById("downloadBtns");
         dlDiv.innerHTML = `
-            <button class="nice-btn" onclick="b64Download('${data.txt_b64}', '${data.txt_filename}', 'text/plain')">Download .TXT</button>
-            <button class="nice-btn" onclick="b64Download('${data.pdf_b64}', '${data.pdf_filename}', 'application/pdf')">Download .PDF</button>
-            <button class="nice-btn" onclick="b64Download('${data.docx_b64}', '${data.docx_filename}', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')">Download .DOCX</button>
-            <button class="nice-btn" onclick="b64Download('${data.json_b64}', '${data.json_filename}', 'application/json')">Download CO JSON</button>
-        `;
+                        <button class="nice-btn" id="dl-txt">Download .TXT</button>
+                        <button class="nice-btn" id="dl-pdf">Download .PDF</button>
+                        <button class="nice-btn" id="dl-docx">Download .DOCX</button>
+                        <button class="nice-btn" id="dl-json">Download CO JSON</button>
+                    `;
+                document.getElementById("dl-txt").onclick = () =>
+    b64Download(data.txt_b64, data.txt_filename, "text/plain");
+
+    document.getElementById("dl-pdf").onclick = () =>
+    b64Download(data.pdf_b64, data.pdf_filename, "application/pdf");
+
+    document.getElementById("dl-docx").onclick = () =>
+    b64Download(
+        data.docx_b64,
+        data.docx_filename,
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    );
+
+document.getElementById("dl-json").onclick = () =>
+    b64Download(data.json_b64, data.json_filename, "application/json");
 
         const mcqBox = document.getElementById("mcqBox");
         const blocks = data.mcqs_raw.split("\n\n").filter(b => b.includes("Correct Answer:"));
