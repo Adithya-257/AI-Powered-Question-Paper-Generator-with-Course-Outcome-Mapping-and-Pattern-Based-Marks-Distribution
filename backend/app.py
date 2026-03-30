@@ -222,8 +222,8 @@ async def generate_mcqs(
         if not allowed:
             logger.warning(f"Rate limit exceeded for IP: {client_ip}")
             return error_response(error_msg, 429)
-        
-        # Validate inputs using Pydantic
+
+        # Validate inputs
         try:
             validated = MCQGenerationRequest(
                 url_input=url_input,
@@ -233,8 +233,8 @@ async def generate_mcqs(
             )
         except Exception as e:
             return error_response(f"Invalid input: {str(e)}", 400)
-        
-        # Extract text from URL or file
+
+        # Extract text
         if validated.url_input:
             try:
                 text = await extract_text_from_url(validated.url_input)
@@ -244,28 +244,27 @@ async def generate_mcqs(
         else:
             if not file or not file.filename:
                 return error_response("No file uploaded and no URL provided", 400)
-            
+
             if not allowed_file(file.filename):
                 return error_response(
                     f"Invalid file type. Allowed: {', '.join(settings.allowed_extensions).upper()}",
                     400
                 )
-            
-            # Check file size
-            file.file.seek(0, 2)  # Seek to end
+
+            # File size check
+            file.file.seek(0, 2)
             file_size_mb = file.file.tell() / (1024 * 1024)
-            file.file.seek(0)  # Reset
-            
+            file.file.seek(0)
+
             if file_size_mb > settings.max_file_size_mb:
                 return error_response(
                     f"File too large. Maximum size: {settings.max_file_size_mb}MB",
                     400
                 )
-            
-            # Save file using streaming
+
             filename = secure_filename(file.filename)
             filepath = os.path.join(UPLOAD_FOLDER, filename)
-            
+
             try:
                 await save_uploaded_file_streaming(file, filepath)
                 text = extract_text(filepath)
@@ -274,56 +273,40 @@ async def generate_mcqs(
                 logger.error(f"Text extraction failed: {e}")
                 return error_response(f"Error extracting text: {e}", 500)
             finally:
-                # Clean up uploaded file
                 if os.path.exists(filepath):
                     try:
                         os.remove(filepath)
                     except:
                         pass
-        
+
         # Parse COs
         co_entries = [line.strip() for line in validated.co_list.split("\n") if line.strip()]
-        
-        # Check cache
+
+        # Cache check
         cached_result = mcq_cache.get(text, co_entries, validated.total_questions)
         if cached_result:
-            logger.info(f"Cache hit for {client_ip}")
             mapped_mcqs = cached_result["mapped_questions"]
         else:
-            # Generate MCQs
             try:
                 result = await generate_balanced_mcqs(text, co_entries, validated.total_questions)
                 mapped_mcqs = result.get("mapped_questions", [])
-                
-                # Cache result
                 mcq_cache.set(text, co_entries, validated.total_questions, result)
-                logger.info(f"Generated and cached {len(mapped_mcqs)} MCQs")
-            
             except Exception as e:
-                logger.error(f"MCQ generation failed: {e}\n{traceback.format_exc()}")
-                err = str(e).lower()
-                if "rate" in err or "limit" in err:
-                    return error_response(
-                        "AI rate limit reached. Please wait a minute and try again.",
-                        429
-                    )
-                return error_response(
-                    "Error generating MCQs. Please try again or reduce question count.",
-                    500
-                )
-        
-        # Generate timestamp and filenames
+                logger.error(f"MCQ generation failed: {e}")
+                return error_response("Error generating MCQs", 500)
+
+        # File naming
         ist = timezone(timedelta(hours=5, minutes=30))
         timestamp = datetime.now(ist).strftime("%Y%m%d_%H%M%S")
         safe_base = secure_filename(base_name)
-        
+
         txt_name = f"{safe_base}_{timestamp}.txt"
         pdf_name = f"{safe_base}_{timestamp}.pdf"
         json_name = f"{safe_base}_{timestamp}.json"
         docx_name = f"{safe_base}_{timestamp}.docx"
-        
-        # Save files
-    try:
+
+        # Save + encode
+        try:
             with tempfile.TemporaryDirectory() as tmp:
                 save_mcqs_txt(mapped_mcqs, tmp, txt_name)
                 save_mcqs_pdf(mapped_mcqs, tmp, pdf_name)
@@ -337,27 +320,32 @@ async def generate_mcqs(
                     docx_b64 = base64.b64encode(f.read()).decode()
 
                 json_b64 = base64.b64encode(
-                    json.dumps(mapped_mcqs, indent=4).encode()
-                 ).decode()
+                    json.dumps(mapped_mcqs).encode()
+                ).decode()
+
+                return JSONResponse({
+                    "mcqs_raw": "\n\n".join(m["question_block"] for m in mapped_mcqs),
+                    "mapped_mcqs": mapped_mcqs,
+                    "txt_filename": txt_name,
+                    "pdf_filename": pdf_name,
+                    "json_filename": json_name,
+                    "docx_filename": docx_name,
+                    "txt_b64": txt_b64,
+                    "pdf_b64": pdf_b64,
+                    "docx_b64": docx_b64,
+                    "json_b64": json_b64,
+                })
+
+        except Exception as e:
+            logger.error(f"File saving failed: {e}")
+            return error_response("Error saving output files", 500)
 
     except Exception as e:
-        logger.error(f"File saving failed: {e}")
-        return error_response("Error saving output files", 500)
+        logger.error(f"Unexpected error: {e}\n{traceback.format_exc()}")
+        return error_response("Internal server error", 500)
 
     # Return response with base64 files
-    return JSONResponse({
-    "mcqs_raw": "\n\n".join(m["question_block"] for m in mapped_mcqs),
-    "mapped_mcqs": mapped_mcqs,
-    "txt_filename": txt_name,
-    "pdf_filename": pdf_name,
-    "json_filename": json_name,
-    "docx_filename": docx_name,
-    "txt_b64": txt_b64,
-    "pdf_b64": pdf_b64,
-    "docx_b64": docx_b64,
-    "json_b64": json_b64,
-    })
-    
+           
 
 
 
