@@ -118,6 +118,19 @@
 <script>
     const BACKEND_URL = "https://ai-powered-question-paper-generator-with-olyu.onrender.com";
 
+    function b64Download(b64, filename, mime) {
+        const bytes = atob(b64);
+        const arr = new Uint8Array(bytes.length);
+        for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
+        const blob = new Blob([arr], { type: mime });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
     function revealAnswer(id) {
         const box = document.getElementById(id);
         box.style.display = box.style.display === "none" ? "block" : "none";
@@ -129,19 +142,17 @@
         return "score-low";
     }
 
-    function renderMCQs(mcqsRaw, txtFilename, pdfFilename, jsonFilename, docxFilename) {
-        // Download buttons
+    function renderMCQs(data) {
         const dlDiv = document.getElementById("downloadBtns");
-       dlDiv.innerHTML = `
-            <a class="nice-btn" href="${BACKEND_URL}/download/${txtFilename}">Download .TXT</a>
-            <a class="nice-btn" href="${BACKEND_URL}/download/${pdfFilename}">Download .PDF</a>
-            <a class="nice-btn" href="${BACKEND_URL}/download/${jsonFilename}">Download CO JSON</a>
-            <a class="nice-btn" href="${BACKEND_URL}/download/${docxFilename}">Download .DOCX</a>
-            `;
+        dlDiv.innerHTML = `
+            <button class="nice-btn" onclick="b64Download('${data.txt_b64}', '${data.txt_filename}', 'text/plain')">Download .TXT</button>
+            <button class="nice-btn" onclick="b64Download('${data.pdf_b64}', '${data.pdf_filename}', 'application/pdf')">Download .PDF</button>
+            <button class="nice-btn" onclick="b64Download('${data.docx_b64}', '${data.docx_filename}', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')">Download .DOCX</button>
+            <button class="nice-btn" onclick="b64Download('${data.json_b64}', '${data.json_filename}', 'application/json')">Download CO JSON</button>
+        `;
 
-        // MCQ blocks
         const mcqBox = document.getElementById("mcqBox");
-        const blocks = mcqsRaw.split("\n\n").filter(b => b.includes("Correct Answer:"));
+        const blocks = data.mcqs_raw.split("\n\n").filter(b => b.includes("Correct Answer:"));
         let html = "<h2>All MCQs</h2>";
         let answers = [];
 
@@ -155,8 +166,9 @@
                     answerLine = line;
                     const match = line.match(/Correct Answer:\s*([A-D])/i);
                     if (match) answers.push(match[1]);
+                } else if (line && !/^\d+$/.test(line)) {
+                    contentLines.push(line);
                 }
-                else if (line && !/^\d+$/.test(line)) contentLines.push(line);
             });
 
             html += `
@@ -167,16 +179,13 @@
                 </div>`;
         });
 
-        // Add answers section at the end
         html += `
             <div class="mapped-question" style="border-left: 4px solid #2ecc71; margin-top: 30px;">
                 <h3 style="color: #2ecc71;">ANSWERS</h3>
                 <div style="font-family: monospace; font-size: 14px; line-height: 1.8;">`;
-        
         answers.forEach((ans, i) => {
-            html += `<div>Answer_${i + 1}:${ans}</div>`;
+            html += `<div>Answer_${i + 1}: ${ans}</div>`;
         });
-        
         html += `</div></div>`;
 
         mcqBox.innerHTML = html;
@@ -207,13 +216,12 @@
         mappingBox.innerHTML = html;
     }
 
-    // Load data from sessionStorage
     const raw = sessionStorage.getItem("mcqResult");
     if (!raw) {
         window.location.href = "index.html";
     } else {
         const data = JSON.parse(raw);
-        renderMCQs(data.mcqs_raw, data.txt_filename, data.pdf_filename, data.json_filename, data.docx_filename);
+        renderMCQs(data);
         if (data.mapped_mcqs && data.mapped_mcqs.length > 0) {
             renderMapping(data.mapped_mcqs);
         }
