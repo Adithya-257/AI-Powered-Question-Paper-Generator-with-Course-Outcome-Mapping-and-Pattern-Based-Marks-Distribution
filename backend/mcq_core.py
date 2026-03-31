@@ -11,7 +11,6 @@ import re
 import asyncio
 from typing import Dict, List, Tuple, Optional
 import aiohttp
-import docx
 import pdfplumber
 from fpdf import FPDF
 from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type

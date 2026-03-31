@@ -118,18 +118,7 @@
 <script>
     const BACKEND_URL = "https://ai-powered-question-paper-generator-with-olyu.onrender.com";
 
-    function b64Download(b64, filename, mime) {
-        const bytes = atob(b64);
-        const arr = new Uint8Array(bytes.length);
-        for (let i = 0; i < bytes.length; i++) arr[i] = bytes.charCodeAt(i);
-        const blob = new Blob([arr], { type: mime });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        URL.revokeObjectURL(url);
-    }
+
 
     function revealAnswer(id) {
         const box = document.getElementById(id);
@@ -150,21 +139,20 @@
                         <button class="nice-btn" id="dl-docx">Download .DOCX</button>
                         <button class="nice-btn" id="dl-json">Download CO JSON</button>
                     `;
-                document.getElementById("dl-txt").onclick = () =>
-    b64Download(data.txt_b64, data.txt_filename, "text/plain");
+        const BACKEND_URL = "https://ai-powered-question-paper-generator-with-olyu.onrender.com";
 
-    document.getElementById("dl-pdf").onclick = () =>
-    b64Download(data.pdf_b64, data.pdf_filename, "application/pdf");
+        document.getElementById("dl-txt").onclick = () =>
+            window.open(`${BACKEND_URL}/download/${data.txt_filename}`);
 
-    document.getElementById("dl-docx").onclick = () =>
-    b64Download(
-        data.docx_b64,
-        data.docx_filename,
-        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-    );
+        document.getElementById("dl-pdf").onclick = () =>
+            window.open(`${BACKEND_URL}/download/${data.pdf_filename}`);
 
-document.getElementById("dl-json").onclick = () =>
-    b64Download(data.json_b64, data.json_filename, "application/json");
+        document.getElementById("dl-docx").onclick = () =>
+            window.open(`${BACKEND_URL}/download/${data.docx_filename}`);
+
+        document.getElementById("dl-json").onclick = () =>
+            window.open(`${BACKEND_URL}/download/${data.json_filename}`);
+
 
         const mcqBox = document.getElementById("mcqBox");
         const blocks = data.mcqs_raw.split("\n\n").filter(b => b.includes("Correct Answer:"));
