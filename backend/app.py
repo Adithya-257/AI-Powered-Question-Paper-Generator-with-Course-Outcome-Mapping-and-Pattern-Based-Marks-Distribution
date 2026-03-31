@@ -48,7 +48,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+@app.get("/")
+async def root():
+    return {"status": "ok", "service": "AI MCQ Generator API", "version": "2.0.0"}
 
 # ===================================================================
 #                    INPUT VALIDATION MODELS
@@ -305,36 +307,47 @@ async def generate_mcqs(
         json_name = f"{safe_base}_{timestamp}.json"
         docx_name = f"{safe_base}_{timestamp}.docx"
 
-      # Save files permanently in RESULTS_FOLDER
-# Save files permanently in RESULTS_FOLDER
+        # Save + encode
         try:
-            save_mcqs_txt(mapped_mcqs, RESULTS_FOLDER, txt_name)
-            save_mcqs_pdf(mapped_mcqs, RESULTS_FOLDER, pdf_name)
-            save_mcqs_docx(mapped_mcqs, RESULTS_FOLDER, docx_name)
+            with tempfile.TemporaryDirectory() as tmp:
+                save_mcqs_txt(mapped_mcqs, tmp, txt_name)
+                save_mcqs_pdf(mapped_mcqs, tmp, pdf_name)
+                save_mcqs_docx(mapped_mcqs, tmp, docx_name)
 
-            # Save JSON
-            json_path = os.path.join(RESULTS_FOLDER, json_name)
-            with open(json_path, "w") as f:
-                json.dump(mapped_mcqs, f)
+                with open(os.path.join(tmp, txt_name), 'rb') as f:
+                    txt_b64 = base64.b64encode(f.read()).decode()
+                with open(os.path.join(tmp, pdf_name), 'rb') as f:
+                    pdf_b64 = base64.b64encode(f.read()).decode()
+                with open(os.path.join(tmp, docx_name), 'rb') as f:
+                    docx_b64 = base64.b64encode(f.read()).decode()
 
-            return JSONResponse({
-                "mcqs_raw": "\n\n".join(m["question_block"] for m in mapped_mcqs),
-                "mapped_mcqs": mapped_mcqs,
-                "txt_filename": txt_name,
-                "pdf_filename": pdf_name,
-                "json_filename": json_name,
-                "docx_filename": docx_name
-            })
+                json_b64 = base64.b64encode(
+                    json.dumps(mapped_mcqs).encode()
+                ).decode()
+
+                return JSONResponse({
+                    "mcqs_raw": "\n\n".join(m["question_block"] for m in mapped_mcqs),
+                    "mapped_mcqs": mapped_mcqs,
+                    "txt_filename": txt_name,
+                    "pdf_filename": pdf_name,
+                    "json_filename": json_name,
+                    "docx_filename": docx_name,
+                    "txt_b64": txt_b64,
+                    "pdf_b64": pdf_b64,
+                    "docx_b64": docx_b64,
+                    "json_b64": json_b64,
+                })
 
         except Exception as e:
             logger.error(f"File saving failed: {e}")
             return error_response("Error saving output files", 500)
 
-
-    # Return response with base64 files
     except Exception as e:
         logger.error(f"Unexpected error: {e}\n{traceback.format_exc()}")
         return error_response("Internal server error", 500)
+
+    # Return response with base64 files
+           
 
 
 
