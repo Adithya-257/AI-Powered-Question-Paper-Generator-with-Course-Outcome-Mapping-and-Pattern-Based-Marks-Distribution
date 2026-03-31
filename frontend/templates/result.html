@@ -132,67 +132,71 @@
     }
 
     function renderMCQs(data) {
-        const dlDiv = document.getElementById("downloadBtns");
-        dlDiv.innerHTML = `
-                        <button class="nice-btn" id="dl-txt">Download .TXT</button>
-                        <button class="nice-btn" id="dl-pdf">Download .PDF</button>
-                        <button class="nice-btn" id="dl-docx">Download .DOCX</button>
-                        <button class="nice-btn" id="dl-json">Download CO JSON</button>
-                    `;
-        const BACKEND_URL = "https://ai-powered-question-paper-generator-with-olyu.onrender.com";
+    const dlDiv = document.getElementById("downloadBtns");
 
-        document.getElementById("dl-txt").onclick = () =>
-            window.open(`${BACKEND_URL}/download/${data.txt_filename}`);
+    dlDiv.innerHTML = `
+        <button class="nice-btn" id="dl-txt">Download .TXT</button>
+        <button class="nice-btn" id="dl-pdf">Download .PDF</button>
+        <button class="nice-btn" id="dl-docx">Download .DOCX</button>
+        <button class="nice-btn" id="dl-json">Download CO JSON</button>
+    `;
 
-        document.getElementById("dl-pdf").onclick = () =>
-            window.open(`${BACKEND_URL}/download/${data.pdf_filename}`);
+    const BACKEND_URL = "https://ai-powered-question-paper-generator-with-olyu.onrender.com";
 
-        document.getElementById("dl-docx").onclick = () =>
-            window.open(`${BACKEND_URL}/download/${data.docx_filename}`);
+    document.getElementById("dl-txt").onclick = () =>
+        window.open(`${BACKEND_URL}/download/${data.txt_filename}`);
 
-        document.getElementById("dl-json").onclick = () =>
-            window.open(`${BACKEND_URL}/download/${data.json_filename}`);
+    document.getElementById("dl-pdf").onclick = () =>
+        window.open(`${BACKEND_URL}/download/${data.pdf_filename}`);
+
+    document.getElementById("dl-docx").onclick = () =>
+        window.open(`${BACKEND_URL}/download/${data.docx_filename}`);
+
+    document.getElementById("dl-json").onclick = () =>
+        window.open(`${BACKEND_URL}/download/${data.json_filename}`);
 
 
-        const mcqBox = document.getElementById("mcqBox");
-        const blocks = data.mcqs_raw.split("\n\n").filter(b => b.includes("Correct Answer:"));
-        let html = "<h2>All MCQs</h2>";
-        let answers = [];
+    const mcqBox = document.getElementById("mcqBox");
 
-        blocks.forEach((block, i) => {
-            const lines = block.split("\n").map(l => l.trim()).filter(Boolean);
-            let answerLine = "";
-            let contentLines = [];
-
-            lines.forEach(line => {
-                if (line.startsWith("Correct Answer:")) {
-                    answerLine = line;
-                    const match = line.match(/Correct Answer:\s*([A-D])/i);
-                    if (match) answers.push(match[1]);
-                } else if (line && !/^\d+$/.test(line)) {
-                    contentLines.push(line);
-                }
-            });
-
-            html += `
-                <div class="mapped-question">
-                    <h3>MCQ ${i + 1}</h3>
-                    ${contentLines.map(l => `<div style="margin-bottom:6px;">${l}</div>`).join("")}
-                    ${i < blocks.length - 1 ? "<hr>" : ""}
-                </div>`;
-        });
-
-        html += `
-            <div class="mapped-question" style="border-left: 4px solid #2ecc71; margin-top: 30px;">
-                <h3 style="color: #2ecc71;">ANSWERS</h3>
-                <div style="font-family: monospace; font-size: 14px; line-height: 1.8;">`;
-        answers.forEach((ans, i) => {
-            html += `<div>Answer_${i + 1}: ${ans}</div>`;
-        });
-        html += `</div></div>`;
-
-        mcqBox.innerHTML = html;
+    if (!data.mapped_mcqs || data.mapped_mcqs.length === 0) {
+        mcqBox.innerHTML = "<p>No MCQs generated</p>";
+        return;
     }
+
+    let html = "<h2>All MCQs</h2>";
+    let answers = [];
+
+    data.mapped_mcqs.forEach((mcq, i) => {
+        html += `
+            <div class="mapped-question">
+                <h3>MCQ ${i + 1}</h3>
+                <div style="margin-bottom:6px;">${mcq.question_text}</div>
+                <div>A) ${mcq.options.A}</div>
+                <div>B) ${mcq.options.B}</div>
+                <div>C) ${mcq.options.C}</div>
+                <div>D) ${mcq.options.D}</div>
+                ${i < data.mapped_mcqs.length - 1 ? "<hr>" : ""}
+            </div>
+        `;
+
+        answers.push(mcq.correct_answer);
+    });
+
+    // answers section (same as your old UI)
+    html += `
+        <div class="mapped-question" style="border-left: 4px solid #2ecc71; margin-top: 30px;">
+            <h3 style="color: #2ecc71;">ANSWERS</h3>
+            <div style="font-family: monospace; font-size: 14px; line-height: 1.8;">
+    `;
+
+    answers.forEach((ans, i) => {
+        html += `<div>Answer_${i + 1}: ${ans}</div>`;
+    });
+
+    html += `</div></div>`;
+
+    mcqBox.innerHTML = html;
+}
 
     function renderMapping(mappedMcqs) {
         const mappingBox = document.getElementById("mappingBox");

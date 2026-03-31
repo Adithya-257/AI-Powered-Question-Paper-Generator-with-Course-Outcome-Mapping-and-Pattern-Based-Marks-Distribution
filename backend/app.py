@@ -8,7 +8,6 @@ import json
 import traceback
 import gzip
 import io
-import base64, tempfile
 from datetime import datetime, timezone, timedelta
 
 sys.path.insert(0, os.path.dirname(__file__))
@@ -309,34 +308,23 @@ async def generate_mcqs(
 
         # Save + encode
         try:
-            with tempfile.TemporaryDirectory() as tmp:
-                save_mcqs_txt(mapped_mcqs, tmp, txt_name)
-                save_mcqs_pdf(mapped_mcqs, tmp, pdf_name)
-                save_mcqs_docx(mapped_mcqs, tmp, docx_name)
+            save_mcqs_txt(mapped_mcqs, RESULTS_FOLDER, txt_name)
+            save_mcqs_pdf(mapped_mcqs, RESULTS_FOLDER, pdf_name)
+            save_mcqs_docx(mapped_mcqs, RESULTS_FOLDER, docx_name)
 
-                with open(os.path.join(tmp, txt_name), 'rb') as f:
-                    txt_b64 = base64.b64encode(f.read()).decode()
-                with open(os.path.join(tmp, pdf_name), 'rb') as f:
-                    pdf_b64 = base64.b64encode(f.read()).decode()
-                with open(os.path.join(tmp, docx_name), 'rb') as f:
-                    docx_b64 = base64.b64encode(f.read()).decode()
+            # Save JSON
+            json_path = os.path.join(RESULTS_FOLDER, json_name)
+            with open(json_path, "w") as f:
+                json.dump(mapped_mcqs, f)
 
-                json_b64 = base64.b64encode(
-                    json.dumps(mapped_mcqs).encode()
-                ).decode()
-
-                return JSONResponse({
-                    "mcqs_raw": "\n\n".join(m["question_block"] for m in mapped_mcqs),
-                    "mapped_mcqs": mapped_mcqs,
-                    "txt_filename": txt_name,
-                    "pdf_filename": pdf_name,
-                    "json_filename": json_name,
-                    "docx_filename": docx_name,
-                    "txt_b64": txt_b64,
-                    "pdf_b64": pdf_b64,
-                    "docx_b64": docx_b64,
-                    "json_b64": json_b64,
-                })
+            return JSONResponse({
+                "mcqs_raw": "\n\n".join(m["question_block"] for m in mapped_mcqs),
+                "mapped_mcqs": mapped_mcqs,
+                "txt_filename": txt_name,
+                "pdf_filename": pdf_name,
+                "json_filename": json_name,
+                "docx_filename": docx_name
+            })
 
         except Exception as e:
             logger.error(f"File saving failed: {e}")
